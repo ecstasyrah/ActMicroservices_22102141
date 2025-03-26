@@ -1,38 +1,220 @@
-.App {
-  text-align: center;
+/* General styles */
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  background-color: #f9fafb; /* Light gray background for the entire page */
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* App container */
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* Form container */
+.form-container {
+  background-color: #ffffff; /* White background for the form */
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  margin-bottom: 40px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.form-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2d3748; /* Dark gray for text */
+  margin-bottom: 20px;
+}
+
+.form-container .input-field {
+  padding: 12px 15px;
+  border: 1px solid #e2e8f0; /* Light gray border */
+  border-radius: 8px;
+  font-size: 16px;
+  margin-bottom: 15px;
+  background-color: #fdfff6; /* Very light green background */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-container .input-field:focus {
+  outline: none;
+  border-color: #99bc85; /* Soft green border on focus */
+  box-shadow: 0 0 0 3px rgba(153, 188, 133, 0.2); /* Soft green glow */
+}
+
+.form-buttons {
   display: flex;
-  flex-direction: column;
+  gap: 10px;
+}
+
+/* Button styles */
+.create-button,
+.cancel-button,
+.edit-button,
+.delete-button,
+.truncate-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.1s ease;
+}
+
+.create-button {
+  background-color: #99bc85; /* Soft green */
+  color: #ffffff;
+}
+
+.create-button:hover {
+  background-color: #87a873; /* Slightly darker green on hover */
+  transform: translateY(-2px);
+}
+
+.create-button:disabled {
+  background-color: #d1d5db; /* Gray when disabled */
+  cursor: not-allowed;
+}
+
+.cancel-button {
+  background-color: #e4efe7; /* Light green-gray */
+  color: #2d3748;
+}
+
+.cancel-button:hover {
+  background-color: #d1e0d5; /* Slightly darker on hover */
+  transform: translateY(-2px);
+}
+
+.edit-button {
+  background-color: #e4efe7; /* Light green-gray */
+  color: #2d3748;
+  padding: 8px 16px;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.edit-button:hover {
+  background-color: #d1e0d5;
+  transform: translateY(-2px);
+}
+
+.delete-button {
+  background-color: #fa8072; /* Light red */
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.delete-button:hover {
+  background-color: #e57366; /* Slightly darker red on hover */
+  transform: translateY(-2px);
+}
+
+.delete-button:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+.truncate-button {
+  background-color: #f87171; /* Red for a destructive action */
+  color: #ffffff;
+}
+
+.truncate-button:hover {
+  background-color: #ef4444; /* Darker red on hover */
+  transform: translateY(-2px);
+}
+
+.truncate-button:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+/* Table container */
+.table-container {
+  background-color: #ffffff;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
+}
+
+.table-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
 }
 
-.App-link {
-  color: #61dafb;
+/* Error and loading states */
+.error-message {
+  color: #e53e3e; /* Red for errors */
+  font-size: 14px;
+  margin-top: 10px;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+.loading,
+.error {
+  text-align: center;
+  font-size: 18px;
+  color: #2d3748;
+  padding: 20px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 20px 10px;
   }
-  to {
-    transform: rotate(360deg);
+
+  .form-container,
+  .table-container {
+    padding: 20px;
+  }
+
+  .form-title,
+  .table-title {
+    font-size: 20px;
+  }
+
+  .form-container .input-field {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .create-button,
+  .cancel-button,
+  .edit-button,
+  .delete-button,
+  .truncate-button {
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+
+  .action-buttons {
+    gap: 8px;
+  }
+
+  .table-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
 }

@@ -21,6 +21,7 @@ const typeDefs = `#graphql
     createPost(title: String!, content: String!): Post
     updatePost(id: Int!, title: String, content: String): Post
     deletePost(id: Int!): Post
+    truncatePosts: Boolean
   }
 `;
 
@@ -84,19 +85,19 @@ const resolvers = {
         throw new Error(`Failed to delete post: ${error.message}`);
       }
     },
+    truncatePosts: async () => {
+      try {
+        // Truncate the Post table and reset the auto-increment counter
+        await prisma.$executeRaw`TRUNCATE TABLE "Post" RESTART IDENTITY;`;
+        console.log('Truncated Post table and reset auto-increment counter');
+        return true;
+      } catch (error) {
+        console.error('Error truncating posts:', error);
+        throw new Error(`Failed to truncate posts: ${error.message}`);
+      }
+    },
   },
 };
-
-// Test Prisma connection before starting the server
-async function testPrismaConnection() {
-  try {
-    await prisma.$connect();
-    console.log('Prisma connected to the database successfully');
-  } catch (error) {
-    console.error('Failed to connect to the database:', error);
-    process.exit(1); // Exit the process if the database connection fails
-  }
-}
 
 const server = new ApolloServer({
   typeDefs,
@@ -107,25 +108,7 @@ const server = new ApolloServer({
   },
 });
 
-// Seed the database for testing
-async function seed() {
-  try {
-    console.log('Starting database seeding...');
-    await prisma.post.create({
-      data: {
-        title: 'First Post',
-        content: 'This is the first post content',
-      },
-    });
-    console.log('Database seeded successfully');
-  } catch (error) {
-    console.error('Error seeding database:', error);
-  }
-}
-
 async function startServer() {
-  await testPrismaConnection();
-  await seed();
   await startStandaloneServer(server, {
     listen: { port: 4002 },
   }).then(({ url }) => {
