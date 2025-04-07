@@ -1,8 +1,10 @@
 const { ApolloServer } = require('@apollo/server');
 const { startStandaloneServer } = require('@apollo/server/standalone');
 const { PrismaClient } = require('@prisma/client');
+const { createPubSub } = require('@graphql-yoga/subscription');
 
 const prisma = new PrismaClient();
+const pubsub = createPubSub();
 
 const typeDefs = `#graphql
   type Post {
@@ -22,6 +24,10 @@ const typeDefs = `#graphql
     updatePost(id: Int!, title: String, content: String): Post
     deletePost(id: Int!): Post
     truncatePosts: Boolean
+  }
+
+  type Subscription {
+    postCreated: Post!
   }
 `;
 
@@ -58,6 +64,7 @@ const resolvers = {
           throw new Error('Title and content are required');
         }
         const newPost = await prisma.post.create({ data: { title, content } });
+        pubsub.publish('postCreated', { postCreated: newPost });
         console.log('Created post:', newPost);
         return newPost;
       } catch (error) {
@@ -87,7 +94,6 @@ const resolvers = {
     },
     truncatePosts: async () => {
       try {
-        // Truncate the Post table and reset the auto-increment counter
         await prisma.$executeRaw`TRUNCATE TABLE "Post" RESTART IDENTITY;`;
         console.log('Truncated Post table and reset auto-increment counter');
         return true;
@@ -97,6 +103,11 @@ const resolvers = {
       }
     },
   },
+  Subscription: {
+    postCreated: {
+      subscribe: () => pubsub.subscribe('postCreated'),
+    }
+  }
 };
 
 const server = new ApolloServer({
