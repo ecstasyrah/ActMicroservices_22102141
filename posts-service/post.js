@@ -1,133 +1,169 @@
-const { ApolloServer } = require('@apollo/server');
-const { startStandaloneServer } = require('@apollo/server/standalone');
-const { PrismaClient } = require('@prisma/client');
-const { createPubSub } = require('@graphql-yoga/subscription');
+const express = require("express");
+const http = require("http");
+const cors = require("cors");
+const { expressMiddleware } = require("@apollo/server/express4");
+const { ApolloServer } = require("@apollo/server");
+const { makeExecutableSchema } = require("@graphql-tools/schema");
+const { WebSocketServer } = require("ws");
+const { useServer } = require("graphql-ws/lib/use/ws");
+const bodyParser = require("body-parser");
+const { PrismaClient } = require("@prisma/client");
+const pubsub = require("./pubsub");
 
 const prisma = new PrismaClient();
-const pubsub = createPubSub();
+const app = express(); 
+app.use(express.json()); 
 
-const typeDefs = `#graphql
+const PORT = 4002;
+
+app.post('/example', (req, res) => {
+  console.log(req.body);
+  res.send('Body received');
+});
+
+const typeDefs = `
   type Post {
-    id: Int!
+    id: ID!
     title: String!
     content: String!
-    createdAt: String!
   }
 
   type Query {
     posts: [Post]
-    post(id: Int!): Post
+    post(id: ID!): Post
   }
 
   type Mutation {
     createPost(title: String!, content: String!): Post
-    updatePost(id: Int!, title: String, content: String): Post
-    deletePost(id: Int!): Post
-    truncatePosts: Boolean
+    updatePost(id: ID!, title: String!, content: String!): Post
+    deletePost(id: ID!): Post
+    resetPostSequence: Boolean
   }
 
   type Subscription {
-    postCreated: Post!
+    postAdded: Post
+    postUpdated: Post
+    postDeleted: Post
   }
 `;
 
 const resolvers = {
   Query: {
-    posts: async () => {
-      try {
-        const posts = await prisma.post.findMany();
-        console.log('Fetched posts:', posts);
-        return posts;
-      } catch (error) {
-        console.error('Error fetching posts:', error);
-        throw new Error(`Failed to fetch posts: ${error.message}`);
-      }
-    },
-    post: async (_, { id }) => {
-      try {
-        const post = await prisma.post.findUnique({ where: { id } });
-        console.log('Fetched post:', post);
-        if (!post) {
-          throw new Error(`Post with ID ${id} not found`);
-        }
-        return post;
-      } catch (error) {
-        console.error('Error fetching post:', error);
-        throw new Error(`Failed to fetch post: ${error.message}`);
-      }
-    },
+    posts: async () => await prisma.post.findMany(),
+    post: async (_, { id }) => await prisma.post.findUnique({ where: { id: parseInt(id) } }),
   },
   Mutation: {
-    createPost: async (_, { title, content }) => {
+    createPost: async (_, args) => {
       try {
-        if (!title || !content) {
-          throw new Error('Title and content are required');
-        }
-        const newPost = await prisma.post.create({ data: { title, content } });
-        pubsub.publish('postCreated', { postCreated: newPost });
-        console.log('Created post:', newPost);
+        const newPost = await prisma.post.create({ data: args });
+        pubsub.publish("POST_ADDED", { postAdded: newPost });
         return newPost;
       } catch (error) {
-        console.error('Error creating post:', error);
-        throw new Error(`Failed to create post: ${error.message}`);
+        console.error("Error creating post:", error.message);
+        throw new Error("Failed to create post.");
       }
     },
-    updatePost: async (_, { id, ...data }) => {
+
+    updatePost: async (_, { id, title, content }) => {
       try {
-        const updatedPost = await prisma.post.update({ where: { id }, data });
-        console.log('Updated post:', updatedPost);
+        const updatedPost = await prisma.post.update({
+          where: { id: parseInt(id) },
+          data: {
+            ...(title && { title }),
+            ...(content && { content })
+          },
+        });
+        pubsub.publish("POST_UPDATED", { postUpdated: updatedPost });
         return updatedPost;
       } catch (error) {
-        console.error('Error updating post:', error);
+        console.error("Error updating post:", error.message);
         throw new Error(`Failed to update post: ${error.message}`);
       }
     },
+
     deletePost: async (_, { id }) => {
       try {
-        const deletedPost = await prisma.post.delete({ where: { id } });
-        console.log('Deleted post:', deletedPost);
+        const existingPost = await prisma.post.findUnique({
+          where: { id: parseInt(id) },
+        });
+        
+        if (!existingPost) {
+          throw new Error(`Post with ID ${id} not found`);
+        }
+
+        const deletedPost = await prisma.post.delete({
+          where: { id: parseInt(id) },
+        });
+        pubsub.publish("POST_DELETED", { postDeleted: deletedPost });
         return deletedPost;
       } catch (error) {
-        console.error('Error deleting post:', error);
+        console.error("Error deleting post:", error.message);
         throw new Error(`Failed to delete post: ${error.message}`);
       }
     },
-    truncatePosts: async () => {
+    
+    resetPostSequence: async () => {
       try {
-        await prisma.$executeRaw`TRUNCATE TABLE "Post" RESTART IDENTITY;`;
-        console.log('Truncated Post table and reset auto-increment counter');
+        // Delete all posts
+        await prisma.post.deleteMany();
+        
+        // Reset the sequence
+        await prisma.$executeRaw`ALTER SEQUENCE "Post_id_seq" RESTART WITH 1`;
+        
         return true;
       } catch (error) {
-        console.error('Error truncating posts:', error);
-        throw new Error(`Failed to truncate posts: ${error.message}`);
+        console.error("Error resetting sequence:", error);
+        throw new Error("Failed to reset sequence");
       }
     },
   },
   Subscription: {
-    postCreated: {
-      subscribe: () => pubsub.subscribe('postCreated'),
-    }
-  }
+    postAdded: {
+      subscribe: () => pubsub.asyncIterator("POST_ADDED"),
+    },
+    postUpdated: {
+      subscribe: () => pubsub.asyncIterator("POST_UPDATED"),
+    },
+    postDeleted: {
+      subscribe: () => pubsub.asyncIterator("POST_DELETED"),
+    },
+  },
 };
 
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  formatError: (error) => {
-    console.error('GraphQL Error:', error);
-    return error;
-  },
-});
+async function startApolloServer() {
+  app.use(cors());
+  app.use(bodyParser.json());
 
-async function startServer() {
-  await startStandaloneServer(server, {
-    listen: { port: 4002 },
-  }).then(({ url }) => {
-    console.log(`Posts service ready at ${url}`);
-  }).catch(error => {
-    console.error('Failed to start server:', error);
-    process.exit(1);
+  const httpServer = http.createServer(app);
+  const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+  const wsServer = new WebSocketServer({
+    server: httpServer,
+    path: "/graphql",
+  });
+
+  const serverCleanup = useServer({ schema }, wsServer);
+
+  const apolloServer = new ApolloServer({
+    schema,
+    plugins: [{
+      async serverWillStart() {
+        return {
+          async drainServer() {
+            await serverCleanup.dispose();
+          }
+        };
+      }
+    }]
+  });
+
+  await apolloServer.start();
+  app.use("/graphql", expressMiddleware(apolloServer));
+
+  httpServer.listen(PORT, () => {
+    console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
+    console.log(`📡 Subscriptions ready at ws://localhost:${PORT}/graphql`);
   });
 }
 
-startServer();
+startApolloServer();

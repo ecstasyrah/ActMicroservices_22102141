@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, useSubscription } from '@apollo/client';
 import DataTable from 'react-data-table-component';
 import React, { useState } from 'react';
 import { gql } from '@apollo/client';
@@ -25,16 +25,19 @@ const CREATE_POST = gql`
   }
 `;
 
+// Update the DELETE_POST mutation
 const DELETE_POST = gql`
-  mutation DeletePost($id: Int!) {
+  mutation DeletePost($id: ID!) {
     deletePost(id: $id) {
       id
+      title
+      content
     }
   }
 `;
 
 const UPDATE_POST = gql`
-  mutation UpdatePost($id: Int!, $title: String!, $content: String!) {
+  mutation UpdatePost($id: ID!, $title: String!, $content: String!) {
     updatePost(id: $id, title: $title, content: $content) {
       id
       title
@@ -43,15 +46,62 @@ const UPDATE_POST = gql`
   }
 `;
 
-const TRUNCATE_POSTS = gql`
-  mutation TruncatePosts {
-    truncatePosts
+const POST_ADDED_SUBSCRIPTION = gql`
+  subscription OnPostAdded {
+    postAdded {
+      id
+      title
+      content
+    }
   }
 `;
 
-// 2. Configure table columns
+const POST_UPDATED_SUBSCRIPTION = gql`
+  subscription OnPostUpdated {
+    postUpdated {
+      id
+      title
+      content
+    }
+  }
+`;
+
+const POST_DELETED_SUBSCRIPTION = gql`
+  subscription OnPostDeleted {
+    postDeleted {
+      id
+    }
+  }
+`;
+
 export default function App() {
   const { loading, error, data, refetch } = useQuery(GET_POSTS);
+  
+  useSubscription(POST_ADDED_SUBSCRIPTION, {
+    onData: ({ data }) => {
+      if (data?.data?.postAdded) {
+        refetch();
+      }
+    },
+  });
+
+  useSubscription(POST_UPDATED_SUBSCRIPTION, {
+    onData: ({ data }) => {
+      if (data?.data?.postUpdated) {
+        refetch();
+      }
+    },
+  });
+
+  useSubscription(POST_DELETED_SUBSCRIPTION, {
+    onData: ({ data }) => {
+      if (data?.data?.postDeleted) {
+        refetch();
+      }
+    },
+  });
+
+  // Remove POST_TRUNCATED_SUBSCRIPTION and truncatePosts mutation
   const [createPost, { loading: createLoading, error: createError }] = useMutation(CREATE_POST, {
     onCompleted: () => refetch(),
   });
@@ -63,9 +113,6 @@ export default function App() {
       refetch();
       setEditingPost(null);
     },
-  });
-  const [truncatePosts, { loading: truncateLoading, error: truncateError }] = useMutation(TRUNCATE_POSTS, {
-    onCompleted: () => refetch(),
   });
 
   const [newPost, setNewPost] = useState({ title: '', content: '' });
@@ -84,22 +131,17 @@ export default function App() {
   };
 
   // Handle delete post
+  // Update the handleDelete function
   const handleDelete = async (id) => {
     try {
-      await deletePost({ variables: { id } });
+      await deletePost({ 
+        variables: { 
+          id: id.toString() 
+        } 
+      });
     } catch (error) {
       console.error('Error deleting post:', error);
       alert(`Delete failed: ${error.message}`);
-    }
-  };
-
-  // Handle truncate posts
-  const handleTruncate = async () => {
-    try {
-      await truncatePosts();
-    } catch (error) {
-      console.error('Error truncating posts:', error);
-      alert(`Truncate failed: ${error.message}`);
     }
   };
 
@@ -166,13 +208,7 @@ export default function App() {
       <div className="table-container">
         <div className="table-header">
           <h2 className="table-title">All Posts</h2>
-          <button
-            onClick={handleTruncate}
-            className="truncate-button"
-            disabled={truncateLoading || data.posts.length === 0}
-          >
-            {truncateLoading ? 'Clearing...' : 'Clear All Posts'}
-          </button>
+          {/* Remove truncate button */}
         </div>
         <DataTable
           columns={[
@@ -217,7 +253,7 @@ export default function App() {
           }}
         />
         {deleteError && <p className="error-message">{deleteError.message}</p>}
-        {truncateError && <p className="error-message">{truncateError.message}</p>}
+        {/* Remove truncateError message */}
       </div>
     </div>
   );
