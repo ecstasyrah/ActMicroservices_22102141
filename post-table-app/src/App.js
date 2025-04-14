@@ -78,24 +78,24 @@ export default function App() {
   const { loading, error, data, refetch } = useQuery(GET_POSTS);
   
   useSubscription(POST_ADDED_SUBSCRIPTION, {
-    onData: ({ data }) => {
-      if (data?.data?.postAdded) {
+    onSubscriptionData: ({ subscriptionData }) => {
+      if (subscriptionData.data) {
         refetch();
       }
     },
   });
 
   useSubscription(POST_UPDATED_SUBSCRIPTION, {
-    onData: ({ data }) => {
-      if (data?.data?.postUpdated) {
+    onSubscriptionData: ({ subscriptionData }) => {
+      if (subscriptionData.data) {
         refetch();
       }
     },
   });
 
   useSubscription(POST_DELETED_SUBSCRIPTION, {
-    onData: ({ data }) => {
-      if (data?.data?.postDeleted) {
+    onSubscriptionData: ({ subscriptionData }) => {
+      if (subscriptionData.data) {
         refetch();
       }
     },

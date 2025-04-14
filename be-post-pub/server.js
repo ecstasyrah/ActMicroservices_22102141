@@ -15,4 +15,4 @@ setInterval(() => {
     const post = generatePost();
     socket.emit('new-post', post);
     console.log('Published post:', post);
-}, 5000);
+}, 1000);

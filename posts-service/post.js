@@ -56,7 +56,7 @@ const resolvers = {
     createPost: async (_, args) => {
       try {
         const newPost = await prisma.post.create({ data: args });
-        pubsub.publish("POST_ADDED", { postAdded: newPost });
+        pubsub.publish('POST_ADDED', { postAdded: newPost });
         return newPost;
       } catch (error) {
         console.error("Error creating post:", error.message);
@@ -73,7 +73,7 @@ const resolvers = {
             ...(content && { content })
           },
         });
-        pubsub.publish("POST_UPDATED", { postUpdated: updatedPost });
+        pubsub.publish('POST_UPDATED', { postUpdated: updatedPost });
         return updatedPost;
       } catch (error) {
         console.error("Error updating post:", error.message);
@@ -94,7 +94,7 @@ const resolvers = {
         const deletedPost = await prisma.post.delete({
           where: { id: parseInt(id) },
         });
-        pubsub.publish("POST_DELETED", { postDeleted: deletedPost });
+        pubsub.publish('POST_DELETED', { postDeleted: deletedPost });
         return deletedPost;
       } catch (error) {
         console.error("Error deleting post:", error.message);
@@ -119,13 +119,13 @@ const resolvers = {
   },
   Subscription: {
     postAdded: {
-      subscribe: () => pubsub.asyncIterator("POST_ADDED"),
+      subscribe: () => pubsub.asyncIterableIterator('POST_ADDED'),
     },
     postUpdated: {
-      subscribe: () => pubsub.asyncIterator("POST_UPDATED"),
+      subscribe: () => pubsub.asyncIterableIterator('POST_UPDATED'),
     },
     postDeleted: {
-      subscribe: () => pubsub.asyncIterator("POST_DELETED"),
+      subscribe: () => pubsub.asyncIterableIterator('POST_DELETED'),
     },
   },
 };
